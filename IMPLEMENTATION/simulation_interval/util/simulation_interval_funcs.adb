@@ -1,3 +1,4 @@
+with Ada.Text_IO;
 with Doubles ; use Doubles ;
 with task_set;
 use task_set;
@@ -8,17 +9,78 @@ with Processors;                        use Processors;
 with processor_set;                     use processor_set;
 with natural_util ; 
 with fifos;
+with feasibility_test.feasibility_interval; use feasibility_test.feasibility_interval;
 with Ada.Integer_Text_IO;
 package body simulation_interval_funcs is
 
+
+
+function is_scheduling_period_2022 (my_tasks : in tasks_set; processor : in generic_processor_ptr) return Boolean
+is
+   a_task      : generic_task_ptr;
+   my_iterator : tasks_iterator;
+   Current_Task_O : Natural;
+   Current_Task_T : Natural;
+   Current_Task_D : Natural;
+   
+   Async : Boolean := False; 
+   With_Preemption_Delay : Boolean := True;
+   deadline_nequal_to_period : Boolean := True;
+
+   Work_Conserving_Deterministic_memoryLessSchduler : Boolean; 
+   processor_name : Unbounded_String := processor.name;
+   
+   -- Variables to track the first task's offset
+   First_Offset     : Natural := 0;
+   First_Offset_Set : Boolean := False;
+
+begin
+   Work_Conserving_Deterministic_memoryLessSchduler := 
+      is_resettable_deterministic_scheduler(Mono_Core_Processor_Ptr (processor).core.scheduling.scheduler_type) 
+      and is_work_conserving_scheduler(Mono_Core_Processor_Ptr (processor).core.scheduling.scheduler_type);
+   periodic_control (my_tasks, processor_name);
+   reset_iterator (my_tasks, my_iterator);
+   loop
+      current_element (my_tasks, a_task, my_iterator);
+
+      if (a_task.cpu_name = processor_name and a_task.task_type = periodic_type) then
+         Current_Task_O := a_task.start_time;
+         if not First_Offset_Set then
+            First_Offset := Current_Task_O;
+            First_Offset_Set := True;
+         elsif Current_Task_O /= First_Offset then
+            Async := True;
+         end if;
+
+         Current_Task_T := periodic_task_ptr (a_task).period;
+         Current_Task_D := a_task.deadline;
+         
+         if Current_Task_D = Current_Task_T then 
+            deadline_nequal_to_period := False;
+         end if;
+      end if;
+      
+      exit when is_last_element (my_tasks, my_iterator) or (not deadline_nequal_to_period) ;
+      next_element (my_tasks, my_iterator);
+   end loop;
+   Ada.Text_IO.Put_Line (deadline_nequal_to_period'Image);
+
+   return deadline_nequal_to_period and Work_Conserving_Deterministic_memoryLessSchduler and Async and With_Preemption_Delay;
+
+end is_scheduling_period_2022;
 --- This Function still needs a way to calculate the max preemption delay 
 function scheduling_period_2022 (my_tasks : in tasks_set; processor_name : in Unbounded_String) return Double
 is
 Return_Value : Double := 1.0 ;
 Number_of_Tasks :Natural  :=1; --Natural 0 -> 100
 Hyper_Period : Integer := 1;
-
+Applicable : Boolean := True;
 begin
+-- verify if it is applicable 
+
+
+
+
 --calculate *(min((Oi+Di-Ti),0) + 1)
 declare 
    a_task      : generic_task_ptr;
@@ -54,6 +116,8 @@ return Return_Value;
 
 end scheduling_period_2022;
 
+
+-- Release functions for pure periodic tasks
 function Release(t: Integer ; my_tasks : in tasks_set ; processor_name : Unbounded_String) return Integer
 is
 a_task      : generic_task_ptr;
@@ -199,7 +263,7 @@ begin
    T_C := Last;
    R_0 := Last + 1;
 
-end Find_Acyclic_Idle_Slots;
+end scheduling_period_2004;
 
 
 end simulation_interval_funcs;

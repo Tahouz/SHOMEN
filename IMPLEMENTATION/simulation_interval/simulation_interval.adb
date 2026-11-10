@@ -201,6 +201,8 @@ with Ada.Command_Line ;
 with Cli_Model_Loader;
 with feasibility_test.feasibility_interval;
 with GNAT.OS_Lib;
+with processor_set;
+with Processors;use Processors;
 with systems;
 with Call_Framework ;
 with Unbounded_Strings;        use Unbounded_Strings;
@@ -239,8 +241,6 @@ begin
    New_Line ;
    double_util.put(scheduling_period_2022(a_system.tasks , To_Unbounded_String("cpu")));
    New_Line ;
-   Put_Line (Request(0,0,a_system.tasks,To_Unbounded_String("cpu"))'Image);
-
-
+   Put_Line (is_scheduling_period_2022(a_system.tasks , processor_set.get_random_element(a_system.processors))'Image);
 
 end simulation_interval;
